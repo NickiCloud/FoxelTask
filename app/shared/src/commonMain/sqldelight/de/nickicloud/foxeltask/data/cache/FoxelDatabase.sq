@@ -1,0 +1,170 @@
+CREATE TABLE CachedUser (
+    id TEXT NOT NULL PRIMARY KEY,
+    username TEXT NOT NULL,
+    email TEXT NOT NULL,
+    fullName TEXT NOT NULL,
+    avatarUrl TEXT,
+    isGlobalAdmin INTEGER NOT NULL DEFAULT 0,
+    token TEXT
+);
+
+CREATE TABLE CachedWorkspace (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    slug TEXT NOT NULL,
+    description TEXT,
+    icon TEXT,
+    role TEXT NOT NULL,
+    boardsCount INTEGER NOT NULL DEFAULT 0,
+    notesCount INTEGER NOT NULL DEFAULT 0,
+    membersCount INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE CachedBoard (
+    id TEXT NOT NULL PRIMARY KEY,
+    workspaceId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    type TEXT NOT NULL,
+    colorTheme TEXT,
+    position INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE CachedColumn (
+    id TEXT NOT NULL PRIMARY KEY,
+    boardId TEXT NOT NULL,
+    name TEXT NOT NULL,
+    colorHex TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    wipLimit INTEGER,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE CachedCard (
+    id TEXT NOT NULL PRIMARY KEY,
+    columnId TEXT NOT NULL,
+    boardId TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    priority TEXT NOT NULL,
+    assigneeId TEXT,
+    dueDate INTEGER,
+    position INTEGER NOT NULL DEFAULT 0,
+    coverColor TEXT,
+    isCompleted INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE CachedNote (
+    id TEXT NOT NULL PRIMARY KEY,
+    workspaceId TEXT NOT NULL,
+    boardId TEXT,
+    cardId TEXT,
+    parentFolderId TEXT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    type TEXT NOT NULL,
+    isPinned INTEGER NOT NULL DEFAULT 0,
+    isArchived INTEGER NOT NULL DEFAULT 0,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE CachedDrawing (
+    id TEXT NOT NULL PRIMARY KEY,
+    workspaceId TEXT NOT NULL,
+    noteId TEXT,
+    title TEXT NOT NULL,
+    canvasJson TEXT NOT NULL,
+    thumbnailDataUrl TEXT,
+    updatedAt INTEGER NOT NULL
+);
+
+CREATE TABLE PendingSyncQueue (
+    id TEXT NOT NULL PRIMARY KEY,
+    workspaceId TEXT NOT NULL,
+    entityType TEXT NOT NULL,
+    entityId TEXT NOT NULL,
+    action TEXT NOT NULL,
+    payloadJson TEXT,
+    createdAt INTEGER NOT NULL
+);
+
+-- Queries for CachedUser
+getUser:
+SELECT * FROM CachedUser LIMIT 1;
+
+insertOrUpdateUser:
+INSERT OR REPLACE INTO CachedUser(id, username, email, fullName, avatarUrl, isGlobalAdmin, token)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+clearUser:
+DELETE FROM CachedUser;
+
+-- Queries for CachedWorkspace
+getWorkspaces:
+SELECT * FROM CachedWorkspace ORDER BY name ASC;
+
+insertOrUpdateWorkspace:
+INSERT OR REPLACE INTO CachedWorkspace(id, name, slug, description, icon, role, boardsCount, notesCount, membersCount, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteWorkspace:
+DELETE FROM CachedWorkspace WHERE id = ?;
+
+-- Queries for CachedBoard & Columns & Cards
+getBoardsForWorkspace:
+SELECT * FROM CachedBoard WHERE workspaceId = ? ORDER BY position ASC;
+
+insertOrUpdateBoard:
+INSERT OR REPLACE INTO CachedBoard(id, workspaceId, title, description, type, colorTheme, position, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+
+getColumnsForBoard:
+SELECT * FROM CachedColumn WHERE boardId = ? ORDER BY position ASC;
+
+insertOrUpdateColumn:
+INSERT OR REPLACE INTO CachedColumn(id, boardId, name, colorHex, position, wipLimit, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+getCardsForColumn:
+SELECT * FROM CachedCard WHERE columnId = ? ORDER BY position ASC;
+
+insertOrUpdateCard:
+INSERT OR REPLACE INTO CachedCard(id, columnId, boardId, title, description, priority, assigneeId, dueDate, position, coverColor, isCompleted, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+moveCard:
+UPDATE CachedCard SET columnId = ?, position = ? WHERE id = ?;
+
+deleteCard:
+DELETE FROM CachedCard WHERE id = ?;
+
+-- Queries for CachedNote
+getNotesForWorkspace:
+SELECT * FROM CachedNote WHERE workspaceId = ? AND isArchived = 0 ORDER BY isPinned DESC, updatedAt DESC;
+
+getNoteById:
+SELECT * FROM CachedNote WHERE id = ?;
+
+insertOrUpdateNote:
+INSERT OR REPLACE INTO CachedNote(id, workspaceId, boardId, cardId, parentFolderId, title, content, type, isPinned, isArchived, updatedAt)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteNote:
+DELETE FROM CachedNote WHERE id = ?;
+
+-- Queries for PendingSyncQueue
+getPendingSyncs:
+SELECT * FROM PendingSyncQueue ORDER BY createdAt ASC;
+
+enqueueSync:
+INSERT OR REPLACE INTO PendingSyncQueue(id, workspaceId, entityType, entityId, action, payloadJson, createdAt)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+removePendingSync:
+DELETE FROM PendingSyncQueue WHERE id = ?;
+
+clearPendingSyncs:
+DELETE FROM PendingSyncQueue;
